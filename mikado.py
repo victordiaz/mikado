@@ -80,25 +80,38 @@ class MyWebView(QWebView):
 
 class Miniwini(QWidget):
 
-    def __init__(self, url):
+    def __init__(self, conf):
         super(Miniwini, self).__init__() 
-        
         self.activated = False 
-        self.createActions()
-        self.createTrayIcon()
-        self.trayIcon.activated.connect(self.iconActivated) 
-
-        self.setIcon()
         
-        self.trayIcon.show() 
-        tray_x = self.trayIcon.geometry().x()
-        tray_y = self.trayIcon.geometry().y()
-        tray_w = self.trayIcon.geometry().width()
+        if (conf['docked'] == "yes"): 
+          self.createActions()
+          self.createTrayIcon()
+          self.trayIcon.activated.connect(self.iconActivated) 
+        
+          self.setIcon(conf['icon'])
+        
+          self.trayIcon.show() 
+          tray_x = self.trayIcon.geometry().x()
+          tray_y = self.trayIcon.geometry().y()
+          tray_w = self.trayIcon.geometry().width()
 
-        w = QApplication.desktop().width()
-        h = QApplication.desktop().height()        
-
-        self.setGeometry(tray_x, abs(h + tray_y), 370, 480)
+          desktop_w = QApplication.desktop().width()
+          desktop_h = QApplication.desktop().height()   
+          
+          self.x = tray_x
+          self.y = abs(desktop_h + tray_y)
+          self.w = 370
+          self.h = 480
+   
+        else: 
+          self.x = int(conf['x'])
+          self.y = int(conf['y'])
+          self.w = int(conf['w'])
+          self.h = int(conf['h'])
+       
+        
+        self.setGeometry(self.x, self.y, self.w, self.h)
 
 
         self.webView = MyWebView()
@@ -106,15 +119,9 @@ class Miniwini(QWidget):
         
         page = MBrowser()
         self.webView.setPage(page)
-        #self.webView.setStyleSheet("background-color: #222; padding: 12px; margin:12px");
 
-
-        #self.webView.settings().setAttribute(QWebSettings.WebAttribute.DeveloperExtrasEnabled, True)
-        
         self.webView.settings().setUserStyleSheetUrl('./qq.css')
-        
-        self.webView.load(QUrl(url))
-        #self.webView.load(QUrl("http://learnwebtutorials.com/example/html5/slider-control.html"))
+        self.webView.load(QUrl(conf['url']))
         
         page.currentFrame().documentElement().setInnerXml("<html><body style =background-color: #bbb; > hola <input type = button value = 'lalala'> </input> </body> </html>")
         
@@ -123,38 +130,53 @@ class Miniwini(QWidget):
         self.layout.setSpacing(0)
         self.setLayout(self.layout)
         
+        if (conf['docked'] == "yes"): 
+          image = QImage()
+          image.load("arrow.png")
+          label = QLabel() 
+          label.setPixmap(QPixmap.fromImage(image))
+          label.setContentsMargins(0, 0, 0, 0) 
+          label.setStyleSheet("padding: 0px; margin:0px");
+          #self.layout.addWidget(self.webView)
+          
+          #self.olayout = MyLayout(self) 
+          #self.olayout.setContentsMargins(0, 0, 12, 12) 
+          #self.olayout.addWidget(self.webView)
 
-        image = QImage()
-        image.load("arrow.png")
-        label = QLabel() 
-        label.setPixmap(QPixmap.fromImage(image))
-        label.setContentsMargins(0, 0, 0, 0) 
-        label.setStyleSheet("padding: 0px; margin:0px");
-        #self.layout.addWidget(self.webView)
-
-                
-        self.olayout = MyLayout(self) 
-        self.olayout.setContentsMargins(0, 0, 12, 12) 
-        self.olayout.addWidget(self.webView)
-
-        self.layout.addWidget(label)
-        self.layout.addLayout(self.olayout)
+          self.layout.addWidget(label)
+        
+        
+        self.layout.addWidget(self.webView)
         #print self.webView.spacing()
+        
+        if (conf['border'] == "no"): 
+        	print "hola"
+       		self.setAttribute(Qt.WA_TranslucentBackground, True)
+        	self.setWindowFlags(Qt.FramelessWindowHint)
 
-        #palette = self.webView.palette()
-        # palette.setBrush(QPalette.Base, Qt.transparent)
-        # self.webView.page().setPalette(palette)
-        #self.webView.setAttribute(Qt.WA_OpaquePaintEvent, False)
-        #self.connect(self.webView, SIGNAL("titleChanged(const QString&)"), 
-        #             self.setWindowTitle)
+        if (conf['transparency'] == "yes"):
+          print "hola2" 
+          palette = self.webView.palette()
+          palette.setBrush(QPalette.Base, Qt.transparent)
+          self.webView.page().setPalette(palette)
+          self.webView.setAttribute(Qt.WA_OpaquePaintEvent, False)
+          #self.connect(self.webView, SIGNAL("titleChanged(const QString&)"), 
+          #             self.setWindowTitle)
+          
+        
+        #self.webView.settings().setAttribute(QWebSettings.WebAttribute.DeveloperExtrasEnabled, True)
 
         #cambiar esto de sitio 
         inspect = QWebInspector()
         inspect.setPage(self.webView.page())
         inspect.show()
+        
+        if (conf['docked'] == "no"): 
+          self.show()
 
-
-        #self.resize(350, 480)
+        #self.resize(350, 480) 
+        if (conf['fullscreen'] == "yes"): 
+          self.showFullScreen()
 
     def createActions(self):
         self.minimizeAction = QAction("Mi&nimize", self,
@@ -181,13 +203,13 @@ class Miniwini(QWidget):
          #self.trayIcon.setContextMenu(self.trayIconMenu)
 
 
-    def setIcon(self):
-        icon = QIcon('stone.png') 
+    def setIcon(self, icon):
+        t_icon = QIcon(icon) 
         #icon = QWebSettings.iconForUrl("http://www.meneame.net")
         #icon = self.webView.icon()
 
-        self.trayIcon.setIcon(icon)
-        self.setWindowIcon(icon)
+        self.trayIcon.setIcon(t_icon)
+        self.setWindowIcon(t_icon)
 
         self.trayIcon.setToolTip("qq")
         
@@ -214,29 +236,48 @@ class Miniwini(QWidget):
     	
 
 if __name__ == "__main__":
-
+    import ConfigParser
+    import io
+    
+   
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon('stone.png'))
     app.setApplicationName("hola") 
-
-	# init webview 
-    w = Miniwini("http://www.gmail.com")
-    w.setAttribute(Qt.WA_TranslucentBackground, True)
-    w.setWindowFlags(Qt.FramelessWindowHint)
 	
-	# init webview 
-    w2 = Miniwini("http://www.twitter.com")
-    w2.setAttribute(Qt.WA_TranslucentBackground, True)
-    w2.setWindowFlags(Qt.FramelessWindowHint)
+	#read config  
+    config = ConfigParser.RawConfigParser(allow_no_value=True)
+    config.read('settings.conf')
+    
+    q = []
+    
+    for section in config.sections(): 
+        conf = {}
+        for m in config.items(section):
+            conf[m[0]] = m[1]
+        print conf
+        w = Miniwini(conf)
+        q.append(w)
 
+  	# init webview 
+    #conf = {'url': 'http://www.gmail.com', 'icon': 'stone.png', 'border': True, 'transparency': False}
+    #w = Miniwini(conf)
+ 
+	# init webview 
+    #conf = {'url': 'http://www.twitter.com', 'icon': 'arrow.png', 'border': True, 'transparency': False}
+    #w2 = Miniwini(conf)
+  
+	# init webview 
+    #conf = {'url': "http://127.0.0.1:4000/qq.html", 'icon': 'stone.png', 'border': False, 'transparency': True}
+    #w3 = Miniwini(conf)
 
 	# init webview 
-    w3 = Miniwini("http://127.0.0.1:4000/qq.html")
-    w3.setAttribute(Qt.WA_TranslucentBackground, True)
-    w3.setWindowFlags(Qt.FramelessWindowHint)
+    #conf = {'url': "http://127.0.0.1:8081/static/livecoding/index.html#fullscreen", 'icon': 'stone.png', 'border': False, 'transparency': False}
+    #w5 = Miniwini(conf)
 
     menubar = QMenuBar() 
     menubar.setWindowTitle("Miniwini")
+
+
 
 
 	#systray 
