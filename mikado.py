@@ -35,6 +35,14 @@ class MyLayout(QVBoxLayout):
        p.end()
 
 
+class ConsolePrinter(QObject):
+    def __init__(self, parent=None):
+        super(ConsolePrinter, self).__init__(parent)
+
+    @Slot(str)
+    def text(self, message):
+        print message
+
 
 class MBrowser(QWebPage): 
   def __init__(self):
@@ -83,9 +91,12 @@ class Miniwini(QWidget):
     def __init__(self, conf):
         super(Miniwini, self).__init__() 
         self.activated = False 
-        
+        self.createActions()
+        shortcut = QShortcut(QKeySequence(self.tr("Alt+M", "File|Open")),self) 
+        QObject.connect(shortcut, SIGNAL('activated()'), self.printqq)
+            
+                     
         if (conf['docked'] == "yes"): 
-          self.createActions()
           self.createTrayIcon()
           self.trayIcon.activated.connect(self.iconActivated) 
         
@@ -112,9 +123,10 @@ class Miniwini(QWidget):
        
         
         self.setGeometry(self.x, self.y, self.w, self.h)
-
-
+     
         self.webView = MyWebView()
+        #self.webView.settings().setAttribute(QWebSettings.WebAttribute.DeveloperExtrasEnabled, True)
+
         #self.webView.setStyleSheet("background-color: black; padding: 12px; margin:12px");
         
         page = MBrowser()
@@ -163,9 +175,7 @@ class Miniwini(QWidget):
           #self.connect(self.webView, SIGNAL("titleChanged(const QString&)"), 
           #             self.setWindowTitle)
           
-        
-        #self.webView.settings().setAttribute(QWebSettings.WebAttribute.DeveloperExtrasEnabled, True)
-
+   
         #cambiar esto de sitio 
         inspect = QWebInspector()
         inspect.setPage(self.webView.page())
@@ -177,12 +187,31 @@ class Miniwini(QWidget):
         #self.resize(350, 480) 
         if (conf['fullscreen'] == "yes"): 
           self.showFullScreen()
+   
+        
+        frame = self.webView.page().mainFrame()
+        printer = ConsolePrinter()
+    
+        frame.addToJavaScriptWindowObject('printer', printer)
+        frame.evaluateJavaScript("alert('Hello');")
+        frame.evaluateJavaScript("printer.text('Goooooooooo!');") 
+        
+        printer = QPrinter()
+        printer.setPageSize(QPrinter.A4)
+        printer.setOutputFormat(QPrinter.PdfFormat)
+        printer.setOutputFileName("qq.pdf") 
+        self.webView.print_(printer)
+        
+
+
+    def printqq(self): 
+      print "qq"
 
     def createActions(self):
-        self.minimizeAction = QAction("Mi&nimize", self,
-                triggered=self.hide)
+        self.minimizeAction = QAction("Mi&nimize", self,  shortcut="Alt+B", 
+                triggered=self.printqq)
 
-        self.maximizeAction = QAction("Ma&ximize", self,
+        self.maximizeAction = QAction("Ma&ximize", self, shortcut="Ctrl+M", 
                 triggered=self.showMaximized)
 
         self.restoreAction = QAction("&Restore", self,
@@ -219,6 +248,7 @@ class Miniwini(QWidget):
     	if (self.activated == False): 
     		self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowStaysOnTopHint)
     		self.show() 
+    		
     	else: 
     		self.hide(); 
         
