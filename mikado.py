@@ -1,3 +1,7 @@
+#!/usr/bin/python
+# Filename: mikado.py
+
+
 #############################################################################
 ## 
 ## Victor Diaz Barrales 
@@ -6,11 +10,16 @@
 ##
 #############################################################################
 
-import sys
+
+import os, sys
 
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtWebKit import * 
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 
 class MyLayout(QVBoxLayout): 
@@ -47,33 +56,42 @@ class ConsolePrinter(QObject):
 class MBrowser(QWebPage): 
   def __init__(self):
     super(MBrowser, self).__init__()
-
-  def userAgentForUrl(self, url): 
-    UA = "Potato/5.0 (X11; Linux x86_64; rv:7.0.1) Gecko/20100101 Firefox/7.0.1"
-    UA = "Mozilla/5.0 (iPhone; U; CPU like Mac OS X; en) AppleWebKit/420+ (KHTML, like Gecko) Version/3.0 Mobile/1A543 Safari/419.3" 
-
-    return UA
+    QWebSettings.globalSettings().setAttribute(QWebSettings.PluginsEnabled, True) 
+    QWebSettings.globalSettings().setAttribute(QWebSettings.OfflineStorageDatabaseEnabled, True)
+    QWebSettings.globalSettings().setAttribute(QWebSettings.DeveloperExtrasEnabled, True) 
+    QWebSettings.globalSettings().setAttribute(QWebSettings.JavascriptCanAccessClipboard, True)
     
+    #"""Captures url as an image to the file specified"""
+    #self.mainFrame().setScrollBarPolicy(Qt.Horizontal, Qt.ScrollBarAlwaysOff)
+    #self.mainFrame().setScrollBarPolicy(Qt.Vertical, Qt.ScrollBarAlwaysOff)
+
+  #def userAgentForUrl(self, url): 
+  #  UA = "Potato/5.0 (X11; Linux x86_64; rv:7.0.1) Gecko/20100101 Firefox/7.0.1"
+  #  UA = "Mozilla/5.0 (iPhone; U; CPU like Mac OS X; en) AppleWebKit/420+ (KHTML, like Gecko) Version/3.0 Mobile/1A543 Safari/419.3" 
+ #
+ #   return UA 
+    
+
   def javaScriptAlert(self, frame, message):
      """Override default JavaScript alert popup and print results
      """
-     common.logger.debug('Alert:' + message)
+     logging.debug('Alert:' + message)
 
   def javaScriptConfirm(self, frame, message):
      """Override default JavaScript confirm popup and print results
      """
-     common.logger.debug('Confirm:' + message)
+     logging.debug('Confirm:' + message)
      return self.confirm
 
   def javaScriptPrompt(self, frame, message, default):
         """Override default JavaScript prompt popup and print results
         """
-        common.logger.debug('Prompt:%s%s' % (message, default))
+        logging.debug('Prompt:%s%s' % (message, default))
 
   def javaScriptConsoleMessage(self, message, line_number, source_id):
         """Print JavaScript console messages
         """
-        common.logger.debug('Console:%s%s%s' % (message, line_number, source_id))
+        logging.debug('Console:%s%s%s' % (message, line_number, source_id))
 
   def shouldInterruptJavaScript(self):
         """Disable javascript interruption dialog box
@@ -84,18 +102,25 @@ class MyWebView(QWebView):
 
     def __init__(self):
         super(MyWebView, self).__init__() 
-        #self.setContentsMargins(12, 12, 12, 12)
+        self.setContentsMargins(12, 12, 12, 12)
+
+        self.saw_initial_layout = False
+        self.saw_document_complete = False
+
 
 class Miniwini(QWidget):
 
     def __init__(self, conf):
         super(Miniwini, self).__init__() 
+        self.setWindowFlags(Qt.Tool)
         self.activated = False 
         self.createActions()
         shortcut = QShortcut(QKeySequence(self.tr("Alt+M", "File|Open")),self) 
         QObject.connect(shortcut, SIGNAL('activated()'), self.printqq)
             
-                     
+        shortcut2 = QShortcut(QKeySequence(self.tr("Alt+B", "File|Open")),self) 
+        QObject.connect(shortcut2, SIGNAL('activated()'), self.doCapture)
+                       
         if (conf['docked'] == "yes"): 
           self.createTrayIcon()
           self.trayIcon.activated.connect(self.iconActivated) 
@@ -115,34 +140,40 @@ class Miniwini(QWidget):
           self.w = 370
           self.h = 480
    
-        else: 
+        if (conf['absoluteposition'] == "yes"): 
           self.x = int(conf['x'])
           self.y = int(conf['y'])
           self.w = int(conf['w'])
           self.h = int(conf['h'])
        
-        
+        print self.x, self.y, self.w, self.h 
         self.setGeometry(self.x, self.y, self.w, self.h)
      
-        self.webView = MyWebView()
+        self.webView = MyWebView() 
+
         #self.webView.settings().setAttribute(QWebSettings.WebAttribute.DeveloperExtrasEnabled, True)
+        #self.webView.setAttribute(Qt.WA_TransparentForMouseEvents, True); 
 
         #self.webView.setStyleSheet("background-color: black; padding: 12px; margin:12px");
         
-        page = MBrowser()
-        self.webView.setPage(page)
-
-        self.webView.settings().setUserStyleSheetUrl('./qq.css')
+        self.page = MBrowser()
+        self.webView.setPage(self.page) 
+        
+        path = os.getcwd() + os.sep + 'qq.css'
+        print path
+        self.webView.settings().setUserStyleSheetUrl(QUrl.fromLocalFile(path))
+       
+             
         self.webView.load(QUrl(conf['url']))
         
-        page.currentFrame().documentElement().setInnerXml("<html><body style =background-color: #bbb; > hola <input type = button value = 'lalala'> </input> </body> </html>")
+        self.page.currentFrame().documentElement().setInnerXml("<html><body style =background-color: #bbb; > hola <input type = button onclick = 'window.alert()' value = 'lalala'> </input> </body> </html>")
         
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(5, 5, 5, 5) 
+        self.layout.setContentsMargins(0, 0, 0, 0) 
         self.layout.setSpacing(0)
         self.setLayout(self.layout)
         
-        if (conf['docked'] == "yes"): 
+        if (conf['docked'] == "yes" and conf['fullscreen'] == "no"): 
           image = QImage()
           image.load("arrow.png")
           label = QLabel() 
@@ -189,30 +220,71 @@ class Miniwini(QWidget):
           self.showFullScreen()
    
         
-        frame = self.webView.page().mainFrame()
+        self.frame = self.webView.page().mainFrame()
         printer = ConsolePrinter()
     
-        frame.addToJavaScriptWindowObject('printer', printer)
-        frame.evaluateJavaScript("alert('Hello');")
-        frame.evaluateJavaScript("printer.text('Goooooooooo!');") 
+        self.frame.addToJavaScriptWindowObject('printer', printer)
+        self.frame.evaluateJavaScript("alert('Hello');")
+        self.frame.evaluateJavaScript("printer.text('Goooooooooo!');") 
         
+  
         printer = QPrinter()
         printer.setPageSize(QPrinter.A4)
         printer.setOutputFormat(QPrinter.PdfFormat)
         printer.setOutputFileName("qq.pdf") 
         self.webView.print_(printer)
+       
+        self.webView.loadFinished.connect(self.loadFinishedSlot)
+        self.page.mainFrame().initialLayoutCompleted.connect(self.initialLayoutSlot)
         
+    def loadFinishedSlot(self):
+      logging.debug("loadFinished") 
+      self.loadUserScript()
+      #self.saw_document_complete = True 
+      #print "qqqqqqqqqqqqq"
+      #if self.saw_initial_layout and self.saw_document_complete:
+      #  self.doCapture()
+
+    def initialLayoutSlot(self):
+      logging.debug("initialLayout") 
+      #self.saw_initial_layout = True
+      #if self.saw_initial_layout and self.saw_document_complete:
+      #  self.doCapture()
+     
+    def loadUserScript(self): 
+        try: 
+      	  dir = os.getcwd() + "/" + "qq.js" 
+     	  f = open (dir,"r")
+     	  #Read whole file into data 
+     	  data = f.read() 
+     	  print data
+     	  #Close the file
+     	  f.close()
+     	  self.frame.evaluateJavaScript(data) 
+     	except:
+     	  print "User script cannot be loaded"
+   
+    
+    def doCapture(self):
+        self.page.setViewportSize(self.page.mainFrame().contentsSize())
+        img = QImage(self.page.viewportSize(), QImage.Format_ARGB32)
+        painter = QPainter(img)
+        self.page.mainFrame().render(painter)
+        painter.end()
+        img.save("qq2.png")
+        #QCoreApplication.instance().quit()
 
 
     def printqq(self): 
       print "qq"
+      self.webView.reload()
 
     def createActions(self):
         self.minimizeAction = QAction("Mi&nimize", self,  shortcut="Alt+B", 
                 triggered=self.printqq)
 
-        self.maximizeAction = QAction("Ma&ximize", self, shortcut="Ctrl+M", 
-                triggered=self.showMaximized)
+        self.maximizeAction = QAction("Ma&ximize", self, shortcut="Alt+M", 
+                triggered=self.doCapture)
 
         self.restoreAction = QAction("&Restore", self,
                 triggered=self.showNormal)
@@ -262,6 +334,8 @@ class Miniwini(QWidget):
         elif reason == QSystemTrayIcon.MiddleClick:
             self.showMessage()
  
+version = '0.1'
+# End of mikado.py
   
     	
 
@@ -273,6 +347,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon('stone.png'))
     app.setApplicationName("hola") 
+
 	
 	#read config  
     config = ConfigParser.RawConfigParser(allow_no_value=True)
@@ -319,4 +394,4 @@ if __name__ == "__main__":
     QApplication.setQuitOnLastWindowClosed(False)
     
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec_())  

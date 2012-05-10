@@ -1,0 +1,17 @@
+[gmail]
+icon = "stone.png"
+url = "http://www.gmail.com"
+userAgent = ""
+border = False
+transparency = True
+docked = True
+
+[meneame]
+icon = "arrow.png"
+url = "http://www.meneame.net"
+border = False
+transparency = True
+docked = False
+alwaysontop = False
+x = 125
+y = 225
